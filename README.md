@@ -36,6 +36,130 @@ K3 = KDF(KEY_new,  KEY_UPDATE_ENC_C)    K4 = KDF(KEY_new,  KEY_UPDATE_MAC_C)
 KDF(K, C) = Miyaguchi-Preneel(K | C)
 ```
 
+## How it works: flow diagrams
+
+### 1. The whole exchange
+
+The host proves it knows an existing (authorizing) key, sends the new key encrypted, and the
+SHE module answers with a proof that only a module which really stored the new key can make.
+
+```mermaid
+sequenceDiagram
+    autonumber
+    participant H as Host (tester / backend)
+    participant S as SHE module (ECU)
+    Note over H: Inputs: UID, ID, AuthID, K_AuthID,<br/>KEY_new, counter C_ID, flags F_ID
+    H->>H: K1 = KDF(K_AuthID, ENC_C)<br/>K2 = KDF(K_AuthID, MAC_C)
+    H->>H: M1 = UID | ID | AuthID<br/>M2 = ENC_CBC K1 (C_ID | F_ID | 0 | KEY_new)<br/>M3 = CMAC K2 (M1 | M2)
+    H->>H: Also precompute the expected M4, M5<br/>(the host knows KEY_new)
+    H->>S: CMD_LOAD_KEY (M1, M2, M3)
+    S->>S: Check slot rules, M3, UID,<br/>write protection, counter
+    alt any check fails
+        S-->>H: Error code (ERC_...)
+    else all checks pass
+        S->>S: Decrypt M2 with K1, store KEY_new
+        S->>S: K3 = KDF(KEY_new, ENC_C)<br/>K4 = KDF(KEY_new, MAC_C)
+        S->>S: M4 = UID | ID | AuthID | ENC_ECB K3 (C_ID | 1 | 0)<br/>M5 = CMAC K4 (M4)
+        S-->>H: M4, M5
+        H->>H: Compare with expected M4, M5
+        Note over H: Match = new key confirmed stored
+    end
+```
+
+### 2. How each message is computed
+
+Blue = inputs, yellow = derived keys, green = messages. M1–M3 depend on the **old**
+(authorizing) key; M4–M5 depend on the **new** key.
+
+```mermaid
+flowchart TD
+    UID[/"UID (15 bytes)"/]:::input
+    IDS[/"ID, AuthID (4 bits each)"/]:::input
+    KA[/"K_AuthID (authorizing key)"/]:::input
+    KN[/"KEY_new (new key)"/]:::input
+    CF[/"C_ID (28 bits), F_ID (5 bits)"/]:::input
+
+    KA --> KDF1["KDF with KEY_UPDATE_ENC_C"] --> K1(["K1"]):::key
+    KA --> KDF2["KDF with KEY_UPDATE_MAC_C"] --> K2(["K2"]):::key
+    KN --> KDF3["KDF with KEY_UPDATE_ENC_C"] --> K3(["K3"]):::key
+    KN --> KDF4["KDF with KEY_UPDATE_MAC_C"] --> K4(["K4"]):::key
+
+    UID --> M1["M1 = UID | ID | AuthID"]:::msg
+    IDS --> M1
+
+    CF --> P2["plaintext = C_ID | F_ID | 0(95) | KEY_new"]
+    KN --> P2
+    P2 --> M2["M2 = AES-CBC encrypt, key K1, IV 0"]:::msg
+    K1 --> M2
+
+    M1 --> M3["M3 = CMAC over M1 | M2, key K2"]:::msg
+    M2 --> M3
+    K2 --> M3
+
+    CF --> P4["counter block = C_ID | 1 | 0(99)"]
+    P4 --> E4["AES-ECB encrypt, key K3"]
+    K3 --> E4
+    M1 -. "same 16 bytes" .-> M4["M4 = UID | ID | AuthID | encrypted counter block"]:::msg
+    E4 --> M4
+
+    M4 --> M5["M5 = CMAC over M4, key K4"]:::msg
+    K4 --> M5
+
+    classDef input fill:#dbeafe,stroke:#2563eb,color:#000
+    classDef key fill:#fef9c3,stroke:#ca8a04,color:#000
+    classDef msg fill:#dcfce7,stroke:#16a34a,color:#000
+```
+
+### 3. The key derivation function (KDF)
+
+Every one of K1–K4 is made the same way, from a 16-byte key K and a 16-byte constant C,
+using the Miyaguchi-Preneel construction with AES:
+
+```mermaid
+flowchart LR
+    Z["H0 = 0"] --> A1["AES encrypt<br/>key = H0, data = K"]
+    K[/"K"/] --> A1
+    A1 --> X1(("XOR"))
+    K --> X1
+    Z --> X1
+    X1 --> H1["H1"]
+    H1 --> A2["AES encrypt<br/>key = H1, data = C"]
+    C[/"C = KEY_UPDATE_ENC_C<br/>or KEY_UPDATE_MAC_C"/] --> A2
+    A2 --> X2(("XOR"))
+    C --> X2
+    H1 --> X2
+    X2 --> OUT(["derived key = H2"])
+```
+
+`H1 = E_H0(K) ⊕ K ⊕ H0` and `KDF(K, C) = H2 = E_H1(C) ⊕ C ⊕ H1`.
+
+### 4. What the SHE module checks
+
+```mermaid
+flowchart TD
+    IN(["Receive M1, M2, M3"]) --> P["Split M1 into UID, ID, AuthID"]
+    P --> C1{"ID is not SECRET_KEY and<br/>AuthID may write ID?"}
+    C1 -- no --> E1["ERC_KEY_INVALID"]:::err
+    C1 -- yes --> C2{"Slot AuthID<br/>holds a key?"}
+    C2 -- no --> E2["ERC_KEY_EMPTY"]:::err
+    C2 -- yes --> C3{"M3 equals<br/>CMAC K2 of M1 | M2?"}
+    C3 -- no --> E3["ERC_KEY_UPDATE_ERROR"]:::err
+    C3 -- yes --> C4{"UID is ours, or wildcard UID<br/>and slot has WILDCARD flag?"}
+    C4 -- no --> E3
+    C4 -- yes --> C5{"Slot ID is<br/>write protected?"}
+    C5 -- yes --> E5["ERC_KEY_WRITE_PROTECTED"]:::err
+    C5 -- no --> D["Decrypt M2 with K1:<br/>C_ID, F_ID, KEY_new"]
+    D --> C6{"C_ID greater than the<br/>stored counter?"}
+    C6 -- no --> E3
+    C6 -- yes --> ST["Store KEY_new, C_ID, F_ID in slot ID"]
+    ST --> OUT(["Return M4, M5"]):::ok
+
+    classDef err fill:#fee2e2,stroke:#dc2626,color:#000
+    classDef ok fill:#dcfce7,stroke:#16a34a,color:#000
+```
+
+(RAM_KEY skips the counter check: it has no counter and no flags.)
+
 ## Quick start (VS Code)
 
 1. Open the folder in VS Code and install the recommended extensions when prompted.

@@ -1,5 +1,7 @@
-import sys
+"""Entry point for "python -m she_memory_update" (same as the she-update command)."""
 
-from .cli import main
+import sys  # sys.exit passes the return code to the shell
 
-sys.exit(main())
+from .cli import main  # the command line interface
+
+sys.exit(main())  # run the CLI and exit with its return code
