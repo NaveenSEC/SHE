@@ -2,8 +2,13 @@
 
 [![CI](https://github.com/NaveenSEC/SHE/actions/workflows/ci.yml/badge.svg)](https://github.com/NaveenSEC/SHE/actions/workflows/ci.yml)
 
-A Python implementation of the AUTOSAR/HIS **Secure Hardware Extension (SHE)** key update
-protocol (`CMD_LOAD_KEY`), with a software SHE emulator to test against.
+An implementation of the AUTOSAR/HIS **Secure Hardware Extension (SHE)** key update
+protocol (`CMD_LOAD_KEY`), with a software SHE emulator to test against. It comes in two
+versions with the same behaviour and the same test cases:
+
+- **Python** (`src/`, `tests/`): for host tools and quick experiments.
+- **C99** (`c/`): no dependencies, also compiles as C++, suitable for ECU firmware or a
+  native host tool. See [`c/README.md`](c/README.md).
 
 1. The **host** builds the request M1, M2, M3 and the response it expects (M4, M5).
 2. The **SHE emulator** checks the request the way a real SHE module does and replies with M4, M5.
@@ -36,8 +41,19 @@ KDF(K, C) = Miyaguchi-Preneel(K | C)
    source .venv/bin/activate        # Windows: .venv\Scripts\activate
    pip install -e ".[dev]"
    ```
-3. Select the `.venv` interpreter, then use the **Testing** sidebar to run the tests, or
+3. Select the `.venv` interpreter, then run the tests from the **Testing** view, or
    **Run and Debug → "SHE: run spec example (emulated)"**.
+
+### Where is the Testing view?
+
+It is the **flask/beaker icon** in the Activity Bar (the vertical strip of icons on the far
+left of VS Code). You can also open it with **View → Testing**, or `Ctrl+Shift+P` (`Cmd+Shift+P`
+on macOS) → *Testing: Focus on Test Explorer View*. If the icon is missing, right-click the
+Activity Bar and tick **Testing**.
+
+The Python tests appear there once the Python extension and the `.venv` interpreter are set up.
+The C tests appear there once the CMake Tools extension has configured the `c/` project
+(it asks on first open; choose a GCC/Clang/MSVC kit).
 
 ## Command line
 
@@ -92,11 +108,13 @@ pytest
   loading SECRET_KEY, and an empty authorizing slot.
 - **Valid updates:** loading RAM_KEY, rotating MASTER_ECU_KEY, a key authorizing itself, BOOT_MAC.
 
-GitHub Actions runs the suite on Python 3.10–3.12 on every push.
+GitHub Actions runs the Python suite on Python 3.10–3.12, and the C suite on Linux, Windows
+and macOS plus an AddressSanitizer/UBSan build, on every push.
 
 ## Project layout
 
 ```
+c/              C99 implementation (library, she-update CLI, tests) - see c/README.md
 src/she_memory_update/
   crypto.py     AES-128 ECB/CBC, CMAC, Miyaguchi-Preneel, KDF
   protocol.py   M1..M5 builders/decoders, KeySlot, KeyFlags

@@ -5,14 +5,36 @@
       "label": "Create venv and install",
       "type": "shell",
       "command": "python3 -m venv .venv && .venv/bin/pip install -e '.[dev]'",
-      "windows": { "command": "py -m venv .venv; .venv\\Scripts\\pip install -e '.[dev]'" },
+      "windows": {
+        "command": "py -m venv .venv; .venv\\Scripts\\pip install -e '.[dev]'"
+      },
       "problemMatcher": []
     },
     {
       "label": "Run tests",
       "type": "shell",
       "command": "python -m pytest",
-      "group": { "kind": "test", "isDefault": true },
+      "group": {
+        "kind": "test",
+        "isDefault": true
+      },
+      "problemMatcher": []
+    },
+    {
+      "label": "C: build",
+      "type": "shell",
+      "command": "cmake -S c -B c/build -DCMAKE_BUILD_TYPE=Debug && cmake --build c/build",
+      "group": "build",
+      "problemMatcher": [
+        "$gcc"
+      ]
+    },
+    {
+      "label": "C: run tests",
+      "type": "shell",
+      "command": "ctest --test-dir c/build --output-on-failure",
+      "dependsOn": "C: build",
+      "group": "test",
       "problemMatcher": []
     }
   ]

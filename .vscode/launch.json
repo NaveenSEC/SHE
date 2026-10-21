@@ -7,7 +7,9 @@
       "request": "launch",
       "module": "she_memory_update",
       "cwd": "${workspaceFolder}",
-      "env": { "PYTHONPATH": "${workspaceFolder}/src" },
+      "env": {
+        "PYTHONPATH": "${workspaceFolder}/src"
+      },
       "console": "integratedTerminal"
     },
     {
@@ -15,9 +17,13 @@
       "type": "debugpy",
       "request": "launch",
       "module": "she_memory_update",
-      "args": ["--no-emulate"],
+      "args": [
+        "--no-emulate"
+      ],
       "cwd": "${workspaceFolder}",
-      "env": { "PYTHONPATH": "${workspaceFolder}/src" },
+      "env": {
+        "PYTHONPATH": "${workspaceFolder}/src"
+      },
       "console": "integratedTerminal"
     },
     {
@@ -25,9 +31,53 @@
       "type": "debugpy",
       "request": "launch",
       "module": "pytest",
-      "args": ["--no-cov", "-v"],
+      "args": [
+        "--no-cov",
+        "-v"
+      ],
       "cwd": "${workspaceFolder}",
       "console": "integratedTerminal"
+    },
+    {
+      "name": "C: run spec example (emulated)",
+      "type": "cppdbg",
+      "request": "launch",
+      "program": "${workspaceFolder}/c/build/she-update",
+      "args": [],
+      "cwd": "${workspaceFolder}/c",
+      "MIMode": "gdb",
+      "osx": {
+        "MIMode": "lldb"
+      },
+      "preLaunchTask": "C: build"
+    },
+    {
+      "name": "C: print messages for a real ECU",
+      "type": "cppdbg",
+      "request": "launch",
+      "program": "${workspaceFolder}/c/build/she-update",
+      "args": [
+        "--no-emulate"
+      ],
+      "cwd": "${workspaceFolder}/c",
+      "MIMode": "gdb",
+      "osx": {
+        "MIMode": "lldb"
+      },
+      "preLaunchTask": "C: build"
+    },
+    {
+      "name": "C: debug tests",
+      "type": "cppdbg",
+      "request": "launch",
+      "program": "${workspaceFolder}/c/build/test_she",
+      "args": [],
+      "cwd": "${workspaceFolder}/c",
+      "MIMode": "gdb",
+      "osx": {
+        "MIMode": "lldb"
+      },
+      "preLaunchTask": "C: build"
     }
   ]
 }

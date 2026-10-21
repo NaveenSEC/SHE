@@ -5,7 +5,7 @@ on:
   pull_request:
 
 jobs:
-  test:
+  python:
     runs-on: ubuntu-latest
     strategy:
       matrix:
@@ -18,3 +18,22 @@ jobs:
       - run: pip install -e ".[dev]"
       - run: pytest
       - run: she-update
+
+  c:
+    runs-on: ${{ matrix.os }}
+    strategy:
+      matrix:
+        os: [ubuntu-latest, windows-latest, macos-latest]
+    steps:
+      - uses: actions/checkout@v4
+      - run: cmake -S c -B c/build -DCMAKE_BUILD_TYPE=Release
+      - run: cmake --build c/build --config Release
+      - run: ctest --test-dir c/build -C Release --output-on-failure
+
+  c-sanitizers:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - run: cmake -S c -B c/build -DCMAKE_BUILD_TYPE=Debug -DCMAKE_C_FLAGS="-fsanitize=address,undefined -fno-sanitize-recover"
+      - run: cmake --build c/build
+      - run: ctest --test-dir c/build --output-on-failure

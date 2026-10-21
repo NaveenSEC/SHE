@@ -1,3 +1,9 @@
 {
-  "recommendations": ["ms-python.python", "ms-python.debugpy", "ms-python.black-formatter"]
+  "recommendations": [
+    "ms-python.python",
+    "ms-python.debugpy",
+    "ms-python.black-formatter",
+    "ms-vscode.cpptools",
+    "ms-vscode.cmake-tools"
+  ]
 }
