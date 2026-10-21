@@ -3,6 +3,8 @@
 Host side: build M1, M2, M3 for a key update and compute the M4, M5 the SHE
 module must answer with, then verify the response received from the module.
 
+See docs/PROTOCOL.md for a step-by-step explanation with worked values.
+
 Message layout (SHE 1.1, 5-bit flag field)::
 
     M1 = UID(120) | ID(4) | AuthID(4)
@@ -111,11 +113,13 @@ def _check_counter(counter: int) -> None:
 
 
 def build_m1(uid: bytes, key_id: int, auth_id: int) -> bytes:
+    """M1 = UID(120) | ID(4) | AuthID(4); the last byte is (ID << 4) | AuthID."""
     _check_uid(uid)
     return uid + bytes([(key_id & 0xF) << 4 | (auth_id & 0xF)])
 
 
 def build_m2(auth_key: bytes, counter: int, flags: KeyFlags, new_key: bytes) -> bytes:
+    """M2 = ENC_CBC,K1,IV=0( C_ID(28) | F_ID(5) | 0(95) | KEY_new ), K1 = KDF(K_AuthID, KEY_UPDATE_ENC_C)."""
     _check_counter(counter)
     if len(new_key) != 16:
         raise ValueError("new key must be 16 bytes")
@@ -126,11 +130,13 @@ def build_m2(auth_key: bytes, counter: int, flags: KeyFlags, new_key: bytes) -> 
 
 
 def build_m3(auth_key: bytes, m1: bytes, m2: bytes) -> bytes:
+    """M3 = CMAC,K2( M1 | M2 ), K2 = KDF(K_AuthID, KEY_UPDATE_MAC_C)."""
     k2 = kdf(auth_key, KEY_UPDATE_MAC_C)
     return cmac(k2, m1 + m2)
 
 
 def build_m4(uid: bytes, key_id: int, auth_id: int, new_key: bytes, counter: int) -> bytes:
+    """M4 = UID | ID | AuthID | ENC_ECB,K3( C_ID(28) | 1 | 0(99) ), K3 = KDF(KEY_new, KEY_UPDATE_ENC_C)."""
     _check_counter(counter)
     k3 = kdf(new_key, KEY_UPDATE_ENC_C)
     # C_ID(28) | 1 | 0(99)
@@ -139,6 +145,7 @@ def build_m4(uid: bytes, key_id: int, auth_id: int, new_key: bytes, counter: int
 
 
 def build_m5(new_key: bytes, m4: bytes) -> bytes:
+    """M5 = CMAC,K4( M4 ), K4 = KDF(KEY_new, KEY_UPDATE_MAC_C)."""
     k4 = kdf(new_key, KEY_UPDATE_MAC_C)
     return cmac(k4, m4)
 

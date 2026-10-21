@@ -26,3 +26,12 @@ def test_rejected_request(capsys):
 
 def test_numeric_slot_and_flags(capsys):
     assert main(["--key-id", "0x5", "--uid", UID.hex(), "--write-protection", "--key-usage"]) == 0
+
+
+def test_explain_shows_derived_keys(capsys):
+    assert main(["--explain", "--no-emulate"]) == 0
+    out = capsys.readouterr().out
+    assert "K1 = KDF(K_AuthID, KEY_UPDATE_ENC_C) = 118a46447a770d87828a69c222e2d17e" in out
+    assert "K4 = KDF(KEY_new,  KEY_UPDATE_MAC_C) = ec9386fefaa1c598246144343de5f26a" in out
+    assert "plaintext block 1 = 00000010000000000000000000000000" in out
+    assert "counter block     = 00000018000000000000000000000000" in out

@@ -1,6 +1,8 @@
 /*
  * SHE CMD_LOAD_KEY memory update protocol (M1..M5) and a SHE module emulator.
  *
+ * See docs/PROTOCOL.md for a step-by-step explanation with worked values.
+ *
  * Message layout (SHE 1.1, 5-bit flag field):
  *
  *   M1 = UID(120) | ID(4) | AuthID(4)

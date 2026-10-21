@@ -31,7 +31,8 @@ c/build/she-update --key-id KEY_3 --auth-key 000102030405060708090a0b0c0d0e0f \
 
 Options match the Python CLI: `--uid`, `--key-id`, `--auth-id`, `--auth-key`, `--new-key`,
 `--counter`, `--write-protection`, `--boot-protection`, `--debugger-protection`,
-`--key-usage`, `--wildcard`, `--no-emulate`. (On Windows the program is
+`--key-usage`, `--wildcard`, `--no-emulate`, `--explain` (prints K1–K4 and the plaintext of
+each message; see [`../docs/PROTOCOL.md`](../docs/PROTOCOL.md)). (On Windows the program is
 `c\build\Debug\she-update.exe`.)
 
 ## Library use

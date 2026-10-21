@@ -53,12 +53,14 @@ static uint32_t get_be32(const uint8_t *p)
     return ((uint32_t)p[0] << 24) | ((uint32_t)p[1] << 16) | ((uint32_t)p[2] << 8) | p[3];
 }
 
+/* M1 = UID(120) | ID(4) | AuthID(4); the last byte is (ID << 4) | AuthID. */
 void she_build_m1(const uint8_t uid[SHE_UID_SIZE], int key_id, int auth_id, uint8_t m1[16])
 {
     memcpy(m1, uid, SHE_UID_SIZE);
     m1[15] = (uint8_t)(((key_id & 0xF) << 4) | (auth_id & 0xF));
 }
 
+/* M2 = ENC_CBC,K1,IV=0( C_ID(28) | F_ID(5) | 0(95) | KEY_new ), K1 = KDF(K_AuthID, KEY_UPDATE_ENC_C). */
 static void build_m2(const uint8_t auth_key[SHE_KEY_SIZE], uint32_t counter, uint8_t flag_bits,
                      const uint8_t new_key[SHE_KEY_SIZE], uint8_t m2[32])
 {
@@ -72,6 +74,7 @@ static void build_m2(const uint8_t auth_key[SHE_KEY_SIZE], uint32_t counter, uin
     she_cbc_encrypt(k1, iv, plain, m2, sizeof plain);
 }
 
+/* M3 = CMAC,K2( M1 | M2 ), K2 = KDF(K_AuthID, KEY_UPDATE_MAC_C). */
 void she_build_m3(const uint8_t auth_key[SHE_KEY_SIZE], const uint8_t m1[16], const uint8_t m2[32], uint8_t m3[16])
 {
     uint8_t k2[16], buf[48];
@@ -81,6 +84,7 @@ void she_build_m3(const uint8_t auth_key[SHE_KEY_SIZE], const uint8_t m1[16], co
     she_cmac(k2, buf, sizeof buf, m3);
 }
 
+/* M4 = UID | ID | AuthID | ENC_ECB,K3( C_ID(28) | 1 | 0(99) ), K3 = KDF(KEY_new, KEY_UPDATE_ENC_C). */
 void she_build_m4(const uint8_t uid[SHE_UID_SIZE], int key_id, int auth_id, const uint8_t new_key[SHE_KEY_SIZE],
                   uint32_t counter, uint8_t m4[32])
 {
@@ -92,6 +96,7 @@ void she_build_m4(const uint8_t uid[SHE_UID_SIZE], int key_id, int auth_id, cons
     she_ecb_encrypt(k3, block, &m4[16], 16);
 }
 
+/* M5 = CMAC,K4( M4 ), K4 = KDF(KEY_new, KEY_UPDATE_MAC_C). */
 void she_build_m5(const uint8_t new_key[SHE_KEY_SIZE], const uint8_t m4[32], uint8_t m5[16])
 {
     uint8_t k4[16];

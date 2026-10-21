@@ -30,6 +30,9 @@ if(BUILD_TESTING)
   add_test(NAME cli_spec_example COMMAND she-update)
   set_tests_properties(cli_spec_example PROPERTIES
     PASS_REGULAR_EXPRESSION "M5 820d8d95dc11b4668878160cb2a4e23e.*verified")
+  add_test(NAME cli_explain COMMAND she-update --explain --no-emulate)
+  set_tests_properties(cli_explain PROPERTIES
+    PASS_REGULAR_EXPRESSION "K1 = KDF\\(K_AuthID, KEY_UPDATE_ENC_C\\) = 118a46447a770d87828a69c222e2d17e.*K4 = KDF\\(KEY_new,  KEY_UPDATE_MAC_C\\) = ec9386fefaa1c598246144343de5f26a.*plaintext block 1 = 00000010000000000000000000000000.*counter block     = 00000018000000000000000000000000")
   add_test(NAME cli_ram_key COMMAND she-update --key-id RAM_KEY --auth-id SECRET_KEY --counter 0)
   add_test(NAME cli_rejects_secret_key COMMAND she-update --key-id SECRET_KEY)
   set_tests_properties(cli_rejects_secret_key PROPERTIES WILL_FAIL TRUE)

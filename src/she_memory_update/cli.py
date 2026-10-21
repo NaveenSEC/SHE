@@ -5,8 +5,9 @@ from __future__ import annotations
 import argparse
 import sys
 
+from .crypto import KEY_UPDATE_ENC_C, KEY_UPDATE_MAC_C, kdf
 from .emulator import SheEmulator, SheError
-from .protocol import KeyFlags, KeySlot, build_key_update, verify_response
+from .protocol import KeyFlags, KeySlot, KeyUpdateMessages, build_key_update, verify_response
 
 
 def _hex_bytes(size: int):
@@ -32,6 +33,38 @@ def _slot(text: str) -> int:
             raise argparse.ArgumentTypeError(f"unknown key slot: {text}") from exc
 
 
+def explain(args: argparse.Namespace, flags: KeyFlags, msgs: KeyUpdateMessages) -> None:
+    """Print every intermediate value used to form M1..M5 (see docs/PROTOCOL.md)."""
+    f_id = flags.to_bits()
+    m2_block1 = (args.counter << 100 | f_id << 95).to_bytes(16, "big")
+    m4_block = (args.counter << 100 | 1 << 99).to_bytes(16, "big")
+    print("Inputs:")
+    print(f"  UID      {args.uid.hex()}")
+    print(f"  ID       {args.key_id:#x} ({KeySlot(args.key_id).name})")
+    print(f"  AuthID   {args.auth_id:#x} ({KeySlot(args.auth_id).name})")
+    print(f"  K_AuthID {args.auth_key.hex()}")
+    print(f"  KEY_new  {args.new_key.hex()}")
+    print(f"  C_ID     {args.counter:#x}")
+    print(f"  F_ID     {f_id:05b} (WP BP DP KU WC)")
+    print("Derived keys, KDF(K, C) = Miyaguchi-Preneel(K | C):")
+    print(f"  K1 = KDF(K_AuthID, KEY_UPDATE_ENC_C) = {kdf(args.auth_key, KEY_UPDATE_ENC_C).hex()}")
+    print(f"  K2 = KDF(K_AuthID, KEY_UPDATE_MAC_C) = {kdf(args.auth_key, KEY_UPDATE_MAC_C).hex()}")
+    print(f"  K3 = KDF(KEY_new,  KEY_UPDATE_ENC_C) = {kdf(args.new_key, KEY_UPDATE_ENC_C).hex()}")
+    print(f"  K4 = KDF(KEY_new,  KEY_UPDATE_MAC_C) = {kdf(args.new_key, KEY_UPDATE_MAC_C).hex()}")
+    print("Message formation:")
+    print("  M1 = UID | ID | AuthID")
+    print(f"     last byte = (ID << 4) | AuthID = {msgs.m1[15]:02x}")
+    print("  M2 = ENC_CBC,K1,IV=0( C_ID(28) | F_ID(5) | 0(95) | KEY_new )")
+    print(f"     plaintext block 1 = {m2_block1.hex()}")
+    print(f"     plaintext block 2 = {args.new_key.hex()}")
+    print("  M3 = CMAC,K2( M1 | M2 )")
+    print("  M4 = UID | ID | AuthID | ENC_ECB,K3( C_ID(28) | 1 | 0(99) )")
+    print(f"     counter block     = {m4_block.hex()}")
+    print(f"     encrypted block   = {msgs.m4[16:].hex()}")
+    print("  M5 = CMAC,K4( M4 )")
+    print()
+
+
 def build_parser() -> argparse.ArgumentParser:
     p = argparse.ArgumentParser(
         prog="she-update",
@@ -49,6 +82,7 @@ def build_parser() -> argparse.ArgumentParser:
     p.add_argument("--key-usage", action="store_true")
     p.add_argument("--wildcard", action="store_true")
     p.add_argument("--no-emulate", action="store_true", help="only print the messages for a real ECU")
+    p.add_argument("--explain", action="store_true", help="show the derived keys and how each message is formed")
     return p
 
 
@@ -62,6 +96,9 @@ def main(argv: list[str] | None = None) -> int:
         wildcard=args.wildcard,
     )
     msgs = build_key_update(args.uid, args.key_id, args.auth_id, args.auth_key, args.new_key, args.counter, flags)
+
+    if args.explain:
+        explain(args, flags, msgs)
 
     print("Request (send to the SHE module):")
     print(f"  M1 {msgs.m1.hex()}")

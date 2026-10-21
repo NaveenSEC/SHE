@@ -19,6 +19,11 @@ key derivation function with the `KEY_UPDATE_ENC_C` / `KEY_UPDATE_MAC_C` constan
 
 ## Message format
 
+**[docs/PROTOCOL.md](docs/PROTOCOL.md) explains step by step how each of M1–M5 is formed**,
+with the formula, the bit layout and the real intermediate values (K1–K4, plaintext blocks)
+for the SHE specification example. Run the CLI with `--explain` to print the same
+intermediate values for your own inputs.
+
 ```
 M1 = UID(120) | ID(4) | AuthID(4)
 M2 = ENC_CBC,K1,IV=0( C_ID(28) | F_ID(5) | 0(95) | KEY_new(128) )
@@ -75,7 +80,7 @@ M5 820d8d95dc11b4668878160cb2a4e23e
 
 Options: `--uid`, `--key-id` (e.g. `KEY_3` or `0x6`), `--auth-id`, `--auth-key`, `--new-key`,
 `--counter`, the flags `--write-protection --boot-protection --debugger-protection --key-usage
---wildcard`, and `--no-emulate`.
+--wildcard`, `--no-emulate`, and `--explain` (prints K1–K4 and the plaintext of each message).
 
 ### Testing a real ECU
 
@@ -114,6 +119,7 @@ and macOS plus an AddressSanitizer/UBSan build, on every push.
 ## Project layout
 
 ```
+docs/PROTOCOL.md  how M1..M5 are formed, step by step
 c/              C99 implementation (library, she-update CLI, tests) - see c/README.md
 src/she_memory_update/
   crypto.py     AES-128 ECB/CBC, CMAC, Miyaguchi-Preneel, KDF
